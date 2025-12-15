@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heart From Chaos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <style>
 html, body {
@@ -11,7 +11,7 @@ html, body {
     padding: 0;
     background: black;
     overflow: hidden;
-    height: 100%;
+    touch-action: none; /* يمنع التمرير الافتراضي عند اللمس */
 }
 canvas {
     display: block;
@@ -26,27 +26,22 @@ canvas {
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let width = window.innerWidth;
-let height = window.innerHeight;
-canvas.width = width;
-canvas.height = height;
-
-const isMobile = width < 768;
-const TOTAL = isMobile ? 1000 : 2000;
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
 
 let particles = [];
 const heartPoints = [];
+const TOTAL = 1500; // قللنا العدد قليلاً لأداء أفضل على الموبايل
 let mouse = { x: null, y: null };
 
 window.addEventListener("resize", () => {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    initHeartPoints(); // إعادة حساب نقاط القلب عند تغيير الحجم
 });
 
-function updateMouse(e) {
-    if (e.touches) {
+function setMousePosition(e) {
+    if (e.touches && e.touches.length > 0) {
         mouse.x = e.touches[0].clientX;
         mouse.y = e.touches[0].clientY;
     } else {
@@ -55,64 +50,82 @@ function updateMouse(e) {
     }
 }
 
-window.addEventListener("mousemove", updateMouse);
-window.addEventListener("touchmove", updateMouse);
-window.addEventListener("touchstart", updateMouse);
+window.addEventListener("mousemove", setMousePosition);
+window.addEventListener("touchmove", setMousePosition);
+window.addEventListener("touchstart", setMousePosition);
 
+// دالة شكل القلب الرياضية
 function heartFunction(t) {
     const x = 16 * Math.pow(Math.sin(t), 3);
     const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
     return { x, y };
 }
 
-for (let i = 0; i < TOTAL; i++) {
-    const t = Math.random() * Math.PI * 2;
-    const p = heartFunction(t);
-    heartPoints.push({
-        x: width / 2 + p.x * 18,
-        y: height / 2 - p.y * 18
-    });
+function initHeartPoints() {
+    heartPoints.length = 0;
+    const scaleFactor = Math.min(width, height) / 20; // حجم تلقائي يتناسب مع الشاشة (أصغر على الموبايل)
+    const finalScale = Math.max(10, Math.min(14, scaleFactor)); // بين 10 و14 كحد أقصى
+
+    for (let i = 0; i < TOTAL; i++) {
+        const t = (i / TOTAL) * Math.PI * 2;
+        const p = heartFunction(t);
+        heartPoints.push({
+            x: width / 2 + p.x * finalScale,
+            y: height / 2 - p.y * finalScale + height * 0.05 // رفع القلب قليلاً للتوازن
+        });
+    }
 }
 
+// إنشاء نقاط القلب أول مرة
+initHeartPoints();
+
+// إنشاء الجسيمات
 for (let i = 0; i < TOTAL; i++) {
     particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
         tx: heartPoints[i].x,
         ty: heartPoints[i].y,
-        size: Math.random() * 3 + 1,
-        speed: Math.random() * 0.04 + 0.02
+        size: Math.random() * 1.5 + 0.8,
+        speed: Math.random() * 0.03 + 0.015
     });
 }
 
 let pulse = 0;
 
 function animate() {
-    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
     ctx.fillRect(0, 0, width, height);
 
-    pulse += 0.02;
-    const scale = 1 + Math.sin(pulse) * 0.03;
+    pulse += 0.04;
+    const scale = 1 + Math.sin(pulse) * 0.03; // نبض أقل حدة
 
     particles.forEach(p => {
+        // الاقتراب من الهدف
         p.x += (p.tx - p.x) * p.speed;
         p.y += (p.ty - p.y) * p.speed;
 
-        let dx = mouse.x - p.x;
-        let dy = mouse.y - p.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
+        // التفاعل مع الماوس/اللمس
+        if (mouse.x !== null && mouse.y !== null) {
+            let dx = mouse.x - p.x;
+            let dy = mouse.y - p.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 150 && mouse.x !== null) {
-            p.x -= dx * 0.04;
-            p.y -= dy * 0.04;
+            if (dist < 100) {
+                p.x -= dx * 0.04;
+                p.y -= dy * 0.04;
+            }
         }
 
-        const scaledX = width / 2 + (p.x - width / 2) * scale;
-        const scaledY = height / 2 + (p.y - height / 2) * scale;
-        const scaledSize = p.size * scale;
-
+        // رسم الجسيم مع النبض
         ctx.beginPath();
-        ctx.arc(scaledX, scaledY, scaledSize, 0, Math.PI * 2);
+        ctx.arc(
+            width / 2 + (p.x - width / 2) * scale,
+            height / 2 + (p.y - height / 2) * scale,
+            p.size,
+            0,
+            Math.PI * 2
+        );
         ctx.fillStyle = "#ff2d55";
         ctx.fill();
     });
