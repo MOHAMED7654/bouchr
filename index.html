@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>لكِ فقط ✨</title>
+<title>  ✨</title>
 <style>
 html, body {
     margin: 0;
@@ -12,7 +12,7 @@ html, body {
     height: 100%;
     background: linear-gradient(to bottom, #000428, #004e92);
     overflow: hidden;
-    touch-action: none; /* منع التمرير عند اللمس */
+    touch-action: none;
     font-family: Arial, sans-serif;
 }
 canvas {
@@ -43,7 +43,7 @@ canvas {
 <body>
 
 <canvas id="canvas"></canvas>
-<div id="message">لكِ فقط ✨</div>
+ 
 
 <script>
 const canvas = document.getElementById("canvas");
@@ -53,17 +53,17 @@ const message = document.getElementById("message");
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 
-let TOTAL = width < 768 ? 500 : 1500; // عدد الجسيمات حسب الشاشة
+let TOTAL = Math.floor(Math.min(width, height) * 2); // عدد الجسيمات ديناميكي
 let particles = [];
 let heartPoints = [];
 let mouse = { x: width / 2, y: height / 2 };
 let pulse = 0;
 
-// تحديث حجم الكانفاس ونقاط القلب عند الريسايز أو دوران الجهاز
+// تحديث الكانفاس عند تغيير الحجم أو دوران الجهاز
 function resizeCanvas() {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
-    TOTAL = width < 768 ? 500 : 1500;
+    TOTAL = Math.floor(Math.min(width, height) * 2);
     initHeartPoints();
     resetParticles();
 }
@@ -88,24 +88,24 @@ function heartFunction(t) {
     return { x, y };
 }
 
-// حساب نقاط القلب بشكل يتناسب مع جميع الشاشات
+// حساب نقاط القلب لتناسب كل الشاشات
 function initHeartPoints() {
     heartPoints = [];
     const padding = 20;
-    const baseScale = (Math.min(width, height) - padding*2) * 0.05;
-    const scale = Math.max(8, Math.min(16, baseScale));
+    const baseScale = (Math.min(width, height) - padding*2) * 0.07;
+    const scale = Math.max(12, Math.min(22, baseScale));
 
     for (let i = 0; i < TOTAL; i++) {
         const t = (i / TOTAL) * Math.PI * 2;
         const p = heartFunction(t);
         heartPoints.push({
-            x: Math.min(width - padding, Math.max(padding, width / 2 + p.x * scale)),
-            y: Math.min(height - padding, Math.max(padding, height / 2 - p.y * scale * 1.1))
+            x: Math.min(width - padding, Math.max(padding, width/2 + p.x * scale)),
+            y: Math.min(height - padding, Math.max(padding, height/2 - p.y * scale))
         });
     }
 }
 
-// إنشاء الجسيمات لأول مرة
+// إنشاء الجسيمات
 function initParticles() {
     particles = [];
     for (let i = 0; i < TOTAL; i++) {
@@ -114,13 +114,13 @@ function initParticles() {
             y: Math.random() * height,
             tx: heartPoints[i].x,
             ty: heartPoints[i].y,
-            size: Math.random() * 1.8 + 0.8,
-            speed: Math.random() * 0.03 + 0.015
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.03 + 0.01
         });
     }
 }
 
-// إعادة تعيين مواقع الجسيمات عند الريسايز
+// إعادة تعيين الجسيمات عند الريسايز
 function resetParticles() {
     particles = particles.map((p, i) => ({
         ...p,
@@ -131,44 +131,36 @@ function resetParticles() {
     }));
 }
 
-// التهيئة
+// التهيئة الأولى
 initHeartPoints();
 initParticles();
 
 // ظهور الرسالة بعد 5 ثواني
-setTimeout(() => {
-    message.style.opacity = 1;
-}, 5000);
+setTimeout(() => { message.style.opacity = 1; }, 5000);
 
-// حلقة التحريك
 function animate() {
-    // خلفية شبه شفافة للتأثير
     ctx.fillStyle = "rgba(0, 0, 20, 0.15)";
     ctx.fillRect(0, 0, width, height);
 
-    // نبض خفيف
     pulse += 0.04;
     const pulseScale = 1 + Math.sin(pulse) * 0.03;
 
     particles.forEach(p => {
-        // الاقتراب من موقع القلب
         p.x += (p.tx - p.x) * p.speed;
         p.y += (p.ty - p.y) * p.speed;
 
-        // التفاعل مع الماوس/اللمس
-        if (mouse.x !== null && mouse.y !== null) {
+        if(mouse.x !== null && mouse.y !== null){
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 100) {
+            if(dist < 100){
                 p.x -= dx * 0.04;
                 p.y -= dy * 0.04;
             }
         }
 
-        // رسم الجسيم مع النبض
-        const scaledX = width / 2 + (p.x - width / 2) * pulseScale;
-        const scaledY = height / 2 + (p.y - height / 2) * pulseScale;
+        const scaledX = width/2 + (p.x - width/2)*pulseScale;
+        const scaledY = height/2 + (p.y - height/2)*pulseScale;
 
         ctx.beginPath();
         ctx.arc(scaledX, scaledY, p.size, 0, Math.PI*2);
@@ -179,8 +171,8 @@ function animate() {
     // قلب كبير في الوسط ينبض
     const centerPulse = 1 + Math.sin(Date.now() * 0.001) * 0.1;
     ctx.save();
-    ctx.translate(width / 2, height / 2);
-    ctx.scale(centerPulse * 1.5, centerPulse * 1.5);
+    ctx.translate(width/2, height/2);
+    ctx.scale(centerPulse*1.5, centerPulse*1.5);
     ctx.fillStyle = "#ff1493";
     ctx.shadowBlur = 50;
     ctx.shadowColor = "#ff1493";
@@ -201,3 +193,4 @@ animate();
 
 </body>
 </html>
+
