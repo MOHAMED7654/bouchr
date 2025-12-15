@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <title>Heart From Chaos</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
 <style>
 html, body {
     margin: 0;
     padding: 0;
+    height: 100%;
     background: black;
     overflow: hidden;
-    touch-action: none; /* يمنع التمرير الافتراضي عند اللمس */
+    touch-action: manipulation; /* تحسين اللمس */
 }
 canvas {
     display: block;
@@ -29,88 +29,106 @@ const ctx = canvas.getContext("2d");
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 
+const TOTAL = 1500; // عدد مناسب للأداء على الموبايل
 let particles = [];
-const heartPoints = [];
-const TOTAL = 1500; // قللنا العدد قليلاً لأداء أفضل على الموبايل
+let heartPoints = [];
 let mouse = { x: null, y: null };
+let pulse = 0;
 
-window.addEventListener("resize", () => {
+// تحديث الحجم عند الريسايز أو الدوران
+window.addEventListener("resize", resizeCanvas);
+function resizeCanvas() {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
-    initHeartPoints(); // إعادة حساب نقاط القلب عند تغيير الحجم
-});
-
-function setMousePosition(e) {
-    if (e.touches && e.touches.length > 0) {
-        mouse.x = e.touches[0].clientX;
-        mouse.y = e.touches[0].clientY;
-    } else {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-    }
+    initHeartPoints();
+    resetParticles();
 }
 
-window.addEventListener("mousemove", setMousePosition);
-window.addEventListener("touchmove", setMousePosition);
-window.addEventListener("touchstart", setMousePosition);
+// دعم الماوس واللمس
+function updateMouse(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    mouse.x = touch.clientX;
+    mouse.y = touch.clientY;
+    e.preventDefault(); // منع التمرير عند اللمس
+}
 
-// دالة شكل القلب الرياضية
+window.addEventListener("mousemove", updateMouse);
+window.addEventListener("touchstart", updateMouse, { passive: false });
+window.addEventListener("touchmove", updateMouse, { passive: false });
+
+// دالة شكل القلب
 function heartFunction(t) {
     const x = 16 * Math.pow(Math.sin(t), 3);
     const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
     return { x, y };
 }
 
+// حساب نقاط القلب بحجم مناسب للشاشة
 function initHeartPoints() {
-    heartPoints.length = 0;
-    const scaleFactor = Math.min(width, height) / 20; // حجم تلقائي يتناسب مع الشاشة (أصغر على الموبايل)
-    const finalScale = Math.max(10, Math.min(14, scaleFactor)); // بين 10 و14 كحد أقصى
+    heartPoints = [];
+    // حجم القلب يتناسب مع أصغر بعد في الشاشة (مثالي للموبايل)
+    const baseScale = Math.min(width, height) * 0.05; // حوالي 12-18 على الموبايل
+    const scale = Math.max(10, Math.min(16, baseScale));
 
     for (let i = 0; i < TOTAL; i++) {
         const t = (i / TOTAL) * Math.PI * 2;
         const p = heartFunction(t);
         heartPoints.push({
-            x: width / 2 + p.x * finalScale,
-            y: height / 2 - p.y * finalScale + height * 0.05 // رفع القلب قليلاً للتوازن
+            x: width / 2 + p.x * scale,
+            y: height / 2 - p.y * scale * 1.1 // تعديل طفيف للشكل
         });
     }
 }
 
-// إنشاء نقاط القلب أول مرة
-initHeartPoints();
-
-// إنشاء الجسيمات
-for (let i = 0; i < TOTAL; i++) {
-    particles.push({
+// إعادة تعيين مواقع الجسيمات العشوائية عند تغيير الحجم
+function resetParticles() {
+    particles = particles.map((p, i) => ({
+        ...p,
         x: Math.random() * width,
         y: Math.random() * height,
         tx: heartPoints[i].x,
-        ty: heartPoints[i].y,
-        size: Math.random() * 1.5 + 0.8,
-        speed: Math.random() * 0.03 + 0.015
-    });
+        ty: heartPoints[i].y
+    }));
 }
 
-let pulse = 0;
+// إنشاء الجسيمات أول مرة
+function initParticles() {
+    particles = [];
+    for (let i = 0; i < TOTAL; i++) {
+        particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            tx: heartPoints[i].x,
+            ty: heartPoints[i].y,
+            size: Math.random() * 1.8 + 0.8,
+            speed: Math.random() * 0.03 + 0.015
+        });
+    }
+}
+
+// التهيئة الأولى
+initHeartPoints();
+initParticles();
 
 function animate() {
-    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    // خلفية مع تلاشي خفيف
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
     ctx.fillRect(0, 0, width, height);
 
+    // نبض خفيف
     pulse += 0.04;
-    const scale = 1 + Math.sin(pulse) * 0.03; // نبض أقل حدة
+    const pulseScale = 1 + Math.sin(pulse) * 0.03;
 
     particles.forEach(p => {
-        // الاقتراب من الهدف
+        // الاقتراب من موقع القلب
         p.x += (p.tx - p.x) * p.speed;
         p.y += (p.ty - p.y) * p.speed;
 
-        // التفاعل مع الماوس/اللمس
+        // التفاعل مع اللمس/الماوس
         if (mouse.x !== null && mouse.y !== null) {
-            let dx = mouse.x - p.x;
-            let dy = mouse.y - p.y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 100) {
                 p.x -= dx * 0.04;
                 p.y -= dy * 0.04;
@@ -118,14 +136,11 @@ function animate() {
         }
 
         // رسم الجسيم مع النبض
+        const scaledX = width / 2 + (p.x - width / 2) * pulseScale;
+        const scaledY = height / 2 + (p.y - height / 2) * pulseScale;
+
         ctx.beginPath();
-        ctx.arc(
-            width / 2 + (p.x - width / 2) * scale,
-            height / 2 + (p.y - height / 2) * scale,
-            p.size,
-            0,
-            Math.PI * 2
-        );
+        ctx.arc(scaledX, scaledY, p.size, 0, Math.PI * 2);
         ctx.fillStyle = "#ff2d55";
         ctx.fill();
     });
